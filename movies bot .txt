@@ -1,0 +1,77 @@
+import telebot
+
+# Replace with your Telegram bot API token
+API_TOKEN = "7266588189:AAEvT_kak1COvihkXxIhkdFsrmFqVuV1EcY"
+
+# Replace with your TMDB API key (for non-commercial use)
+TMDB_API_KEY = "https://api.themoviedb.org/3/movie/11?api_key=API_KEY"
+
+# Base URL for TMDB API requests
+TMDB_BASE_URL = "https://api.themoviedb.org/3/search/movie"
+
+# Create a TeleBot object
+bot = telebot.TeleBot(API_TOKEN)
+
+def fetch_movie_data(title):
+  """Fetches movie data from TMDB API based on title.
+
+  Args:
+      title: The title of the movie to search for.
+
+  Returns:
+      A list of dictionaries containing movie information or None if not found.
+  """
+  # Construct the API request URL with your API key and search query
+  url = f"{TMDB_BASE_URL}?api_key={TMDB_API_KEY}&query={title}"
+
+  try:
+    # Use requests library (install with `pip install requests`) to make the API call
+    import requests
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an exception for non-200 status codes
+
+    data = response.json()
+    # Extract relevant movie information from the response data
+    # (You might need to adjust based on TMDB's API response structure)
+    if data.get('results'):
+      movies = []
+      for result in data['results']:
+        movie_info = {
+            "title": result['title'],
+            "year": result['release_date'].split('-')[0] if result['release_date'] else None,
+            "overview": result['overview'][:100] + "..." if result['overview'] else None,
+        }
+        movies.append(movie_info)
+      return movies
+    else:
+      return None  # No results found
+  except requests.exceptions.RequestException as e:
+    print(f"Error fetching movie data: {e}")
+    return None  # Handle API errors gracefully
+
+# Handle /start command
+@bot.message_handler(commands=["start"])
+def send_welcome(message):
+    bot.reply_to(message, "Hi! I'm a movie bot. Search for movies by title.")
+
+# Handle text messages
+@bot.message_handler(func=lambda message: True)
+def search_movie(message):
+    movie_title = message.text
+    results = fetch_movie_data(movie_title)
+
+    if results:
+        response = "Found movies:\n"
+        for movie in results:
+            title = movie['title']
+            year = movie['year']
+            overview = movie['overview']
+            response += f"- {title} ({year})\n"
+            if overview:
+                response += f"\t{overview}\n"
+        bot.reply_to(message, response)
+    else:
+        bot.reply_to(message, "Sorry, no movies found.")
+
+# Start the Telegram bot
+bot.polling()
